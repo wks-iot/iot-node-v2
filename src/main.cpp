@@ -5,6 +5,7 @@
 #include "config.h"
 
 #define mqtt_server "192.168.43.43"
+#define mqtt_port 1883
 
 const int PIN_SOIL_HUMIDITY = A0;
 const int PIN_LED = D1;
@@ -12,6 +13,8 @@ const int PIN_LED_R = D2;
 const int PIN_LED_G = D3;
 const int PIN_LED_B = D4;
 const int PIN_DHT = D5;
+const int PIN_RELAY_WATERPUMP = D6;
+
 const int DHT_TYPE = DHT11;
 
 const int MINIMAL_HUMIDITY = 45;
@@ -32,6 +35,7 @@ PubSubClient client(espClient);
 const char *TOPIC_TEMPERATURE = "garden/greenhouse/temperature";
 const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
 const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
+const char *TOPIC_WATERPUMP = "garden/greenhouse/waterpump";
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -43,6 +47,31 @@ void printDHTValues(float h, float t, float hic)
     Serial.print("> Heat index: ");
     Serial.println(hic);
     Serial.println("-----------");
+}
+
+void callback(char *topic, byte *payload, unsigned int length)
+{
+    Serial.println("-----------");
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (int i = 0; i < length; i++)
+    {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
+
+    if (strcmp(topic, TOPIC_WATERPUMP) == 0)
+    {
+        if (payload[0] == '0')
+        {
+            digitalWrite(PIN_RELAY_WATERPUMP, LOW);
+        }
+        else if (payload[0] == '1')
+        {
+            digitalWrite(PIN_RELAY_WATERPUMP, HIGH);
+        }
+    }
 }
 
 void setup()
@@ -75,7 +104,11 @@ void setup()
     pinMode(PIN_LED_B, OUTPUT);
     analogWrite(PIN_LED_B, 0);
 
-    client.setServer(mqtt_server, 1883);
+    pinMode(PIN_RELAY_WATERPUMP, OUTPUT);
+    digitalWrite(PIN_LED, LOW);
+
+    client.setServer(mqtt_server, mqtt_port);
+    client.setCallback(callback);
 }
 
 void loop()
@@ -115,12 +148,15 @@ void loop()
 
     if (millis() - millisHomeAssistant > 5000)
     {
-        client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
-        client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
-        client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidity).c_str(), true);
-        Serial.println("-----------");
-        Serial.println("Home Assistant updated!");
-        Serial.println("-----------");
+        if (client.connect("homeAssistant"))
+        {
+            client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
+            client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
+            client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidity).c_str(), true);
+            Serial.println("-----------");
+            Serial.println("Home Assistant updated!");
+            Serial.println("-----------");
+        }
 
         millisHomeAssistant = millis();
     }
