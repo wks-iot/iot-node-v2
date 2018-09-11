@@ -14,6 +14,7 @@ const int PIN_LED_G = D3;
 const int PIN_LED_B = D4;
 const int PIN_DHT = D5;
 const int PIN_RELAY_WATERPUMP = D6;
+const int PIN_MOTION = D7;
 
 const int DHT_TYPE = DHT11;
 
@@ -36,6 +37,7 @@ const char *TOPIC_TEMPERATURE = "garden/greenhouse/temperature";
 const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
 const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
 const char *TOPIC_WATERPUMP = "garden/greenhouse/waterpump";
+const char *TOPIC_MOTION = "garden/greenhouse/motion";
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -74,6 +76,17 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
 }
 
+void motionStatusChanged()
+{
+    int motionStatus = digitalRead(PIN_MOTION);
+    digitalWrite(PIN_RELAY_WATERPUMP, motionStatus);
+    client.publish(TOPIC_MOTION, String(motionStatus).c_str(), true);
+    Serial.println("-----------");
+    Serial.print("> Pump activity: ");
+    Serial.print(motionStatus);
+    Serial.println("-----------");
+}
+
 void setup()
 {
     Serial.begin(9600);
@@ -107,6 +120,9 @@ void setup()
     pinMode(PIN_RELAY_WATERPUMP, OUTPUT);
     digitalWrite(PIN_LED, LOW);
 
+    pinMode(PIN_MOTION, INPUT);
+    attachInterrupt(digitalPinToInterrupt(PIN_MOTION), motionStatusChanged, CHANGE);
+
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
 }
@@ -120,7 +136,7 @@ void loop()
         analogWrite(PIN_LED_G, 1024 - soilHumidity);
 
         soilHumidityPercent = map(soilHumidity, 0, 1024, 100, 0);
-        Serial.print("Humidity: ");
+        Serial.print("> Humidity: ");
         Serial.println(soilHumidityPercent);
 
         millisHumidity = millis();
@@ -134,7 +150,7 @@ void loop()
         if (isnan(dhtHumidity) || isnan(dhtTemperature))
         {
             Serial.println("-----------");
-            Serial.println("Failed to read from DHT sensor!");
+            Serial.println("> Failed to read from DHT sensor!");
             Serial.println("-----------");
         }
         else
@@ -154,7 +170,7 @@ void loop()
             client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
             client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidity).c_str(), true);
             Serial.println("-----------");
-            Serial.println("Home Assistant updated!");
+            Serial.println("> Home Assistant updated!");
             Serial.println("-----------");
         }
 
