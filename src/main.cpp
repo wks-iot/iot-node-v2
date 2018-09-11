@@ -38,6 +38,10 @@ const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
 const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
 const char *TOPIC_WATERPUMP = "garden/greenhouse/waterpump";
 const char *TOPIC_MOTION = "garden/greenhouse/motion";
+const char *TOPIC_WATERPUMP_SET = "garden/greenhouse/waterpump/set";
+const char *TOPIC_MOTION_ARMED = "garden/greenhouse/motion/armed";
+
+int motionSensorArmed = 0;
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -69,9 +73,21 @@ void callback(char *topic, byte *payload, unsigned int length)
         {
             digitalWrite(PIN_RELAY_WATERPUMP, LOW);
         }
-        else if (payload[0] == '1')
+        else if (payload[0] == '1' && motionSensorArmed == 1)
         {
             digitalWrite(PIN_RELAY_WATERPUMP, HIGH);
+        }
+    }
+
+    if (strcmp(topic, TOPIC_MOTION_ARMED) == 0)
+    {
+        if (payload[0] == '0')
+        {
+            motionSensorArmed = 0;
+        }
+        else if (payload[0] == '1')
+        {
+            motionSensorArmed = 1;
         }
     }
 }
