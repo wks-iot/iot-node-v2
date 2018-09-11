@@ -1,42 +1,19 @@
 #include <Arduino.h>
-#include <DHT.h>
-#include <AdafruitIO_WiFi.h>
 
 const int PIN_SOIL_HUMIDITY = A0;
 const int PIN_LED = D1;
+
 const int PIN_LED_R = D2;
 const int PIN_LED_G = D3;
 const int PIN_LED_B = D4;
-const int PIN_DHT = D5;
-const int DHT_TYPE = DHT11;
 
 const int MINIMAL_HUMIDITY = 45;
 int soilHumidity = 0;
 int soilHumidityPercent = 0;
 
-DHT dht(PIN_DHT, DHT_TYPE);
-float dhtHumidity = 0;
-float dhtTemperature = 0;
-
-int millisHumidity = 0;
-int millisConsole = 0;
-
-void printDHTValues(float h, float t, float hic)
-{
-    Serial.println("-----------");
-    Serial.print("> Temperature: ");
-    Serial.println(t);
-    Serial.print("> Humidity: ");
-    Serial.println(h);
-    Serial.print("> Heat index: ");
-    Serial.println(hic);
-    Serial.println("-----------");
-}
-
 void setup()
 {
     Serial.begin(9600);
-    dht.begin();
 
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, LOW);
@@ -53,35 +30,12 @@ void setup()
 
 void loop()
 {
-    if (millis() - millisHumidity > 300)
-    {
-        soilHumidity = analogRead(PIN_SOIL_HUMIDITY);
-        analogWrite(PIN_LED_R, soilHumidity);
-        analogWrite(PIN_LED_G, 1024 - soilHumidity);
+    soilHumidity = analogRead(PIN_SOIL_HUMIDITY);
+    analogWrite(PIN_LED_R, soilHumidity);
+    analogWrite(PIN_LED_G, 1024 - soilHumidity);
 
-        soilHumidityPercent = map(soilHumidity, 0, 1024, 100, 0);
-        Serial.print("Humidity: ");
-        Serial.println(soilHumidityPercent);
-
-        millisHumidity = millis();
-    }
-
-    if (millis() - millisConsole > 1500)
-    {
-        dhtHumidity = dht.readHumidity();
-        dhtTemperature = dht.readTemperature();
-
-        if (isnan(dhtHumidity) || isnan(dhtTemperature))
-        {
-            Serial.println("-----------");
-            Serial.println("Failed to read from DHT sensor!");
-            Serial.println("-----------");
-        }
-        else
-        {
-            float hic = dht.computeHeatIndex(dhtTemperature, dhtHumidity, false);
-            printDHTValues(dhtHumidity, dhtTemperature, hic);
-        }
-        millisConsole = millis();
-    }
+    soilHumidityPercent = map(soilHumidity, 0, 1024, 100, 0);
+    Serial.print("Humidity: ");
+    Serial.println(soilHumidityPercent);
+    delay(250);
 }
