@@ -1,6 +1,10 @@
 #include <Arduino.h>
 #include <DHT.h>
-#include <AdafruitIO_WiFi.h>
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include "config.h"
+
+#define mqtt_server "192.168.43.43"
 
 const int PIN_SOIL_HUMIDITY = A0;
 const int PIN_LED = D1;
@@ -20,6 +24,14 @@ float dhtTemperature = 0;
 
 int millisHumidity = 0;
 int millisConsole = 0;
+int millisHomeAssistant = 0;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const char *TOPIC_TEMPERATURE = "garden/greenhouse/temperature";
+const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
+const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -38,6 +50,19 @@ void setup()
     Serial.begin(9600);
     dht.begin();
 
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    Serial.print("Connecting");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    Serial.print("Connected, IP address: ");
+    Serial.println(WiFi.localIP());
+
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, LOW);
 
@@ -49,6 +74,8 @@ void setup()
 
     pinMode(PIN_LED_B, OUTPUT);
     analogWrite(PIN_LED_B, 0);
+
+    client.setServer(mqtt_server, 1883);
 }
 
 void loop()
@@ -82,6 +109,19 @@ void loop()
             float hic = dht.computeHeatIndex(dhtTemperature, dhtHumidity, false);
             printDHTValues(dhtHumidity, dhtTemperature, hic);
         }
+
         millisConsole = millis();
+    }
+
+    if (millis() - millisHomeAssistant > 5000)
+    {
+        client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
+        client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
+        client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidity).c_str(), true);
+        Serial.println("-----------");
+        Serial.println("Home Assistant updated!");
+        Serial.println("-----------");
+
+        millisHomeAssistant = millis();
     }
 }
