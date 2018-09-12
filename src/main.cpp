@@ -6,6 +6,7 @@
 
 //Put your own ip address below
 #define mqtt_server "192.168.43.158"
+#define mqtt_port 1883
 
 const int PIN_SOIL_HUMIDITY = A0;
 const int PIN_LED = D1;
@@ -76,7 +77,7 @@ void setup()
     pinMode(PIN_LED_B, OUTPUT);
     analogWrite(PIN_LED_B, 0);
 
-    client.setServer(mqtt_server, 1883);
+    client.setServer(mqtt_server, mqtt_port);
 }
 
 void loop()
