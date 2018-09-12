@@ -4,7 +4,8 @@
 #include <PubSubClient.h>
 #include "config.h"
 
-#define mqtt_server "192.168.43.43"
+//Put your own ip address below
+#define mqtt_server "192.168.43.158"
 
 const int PIN_SOIL_HUMIDITY = A0;
 const int PIN_LED = D1;
@@ -117,7 +118,7 @@ void loop()
     {
         client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
         client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
-        client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidity).c_str(), true);
+        client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidityPercent).c_str(), true);
         Serial.println("-----------");
         Serial.println("Home Assistant updated!");
         Serial.println("-----------");
