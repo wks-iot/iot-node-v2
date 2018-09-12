@@ -5,11 +5,11 @@
 #include "config.h"
 
 //Put your own ip address below
-#define mqtt_server "192.168.43.43"
+#define mqtt_server "192.168.43.158"
 #define mqtt_port 1883
 
 const int PIN_SOIL_HUMIDITY = A0;
-const int PIN_LED = D1;
+const int PIN_SPRINKLER = D1;
 const int PIN_LED_R = D2;
 const int PIN_LED_G = D3;
 const int PIN_LED_B = D4;
@@ -31,6 +31,10 @@ int millisHumidity = 0;
 int millisConsole = 0;
 int millisHomeAssistant = 0;
 
+int waterPumpState = 0;
+int sprinklerState = 0;
+int motionState = 0;
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -38,7 +42,11 @@ const char *TOPIC_TEMPERATURE = "garden/greenhouse/temperature";
 const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
 const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
 const char *TOPIC_WATERPUMP = "garden/greenhouse/waterpump";
+const char *TOPIC_WATERPUMP_SET = "garden/greenhouse/waterpump/set";
+const char *TOPIC_SPRINKLERS = "garden/greenhouse/sprinklers";
+const char *TOPIC_SPRINKLERS_SET = "garden/greenhouse/sprinklers/set";
 const char *TOPIC_MOTION = "garden/greenhouse/motion";
+
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -64,27 +72,46 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
     Serial.println();
 
-    if (strcmp(topic, TOPIC_WATERPUMP) == 0)
+    if (strcmp(topic, TOPIC_WATERPUMP_SET) == 0)
     {
         if (payload[0] == '0')
         {
+            waterPumpState = 0;
             digitalWrite(PIN_RELAY_WATERPUMP, LOW);
+            client.publish(TOPIC_WATERPUMP, String(waterPumpState).c_str(), true);
         }
         else if (payload[0] == '1')
         {
+            waterPumpState = 1;
             digitalWrite(PIN_RELAY_WATERPUMP, HIGH);
+            client.publish(TOPIC_WATERPUMP, String(waterPumpState).c_str(), true);
+        }
+    }
+
+    if (strcmp(topic, TOPIC_SPRINKLERS_SET) == 0)
+    {
+        if (payload[0] == '0')
+        {
+            sprinklerState = 0;
+            digitalWrite(PIN_SPRINKLER, LOW);
+            client.publish(TOPIC_SPRINKLERS, String(sprinklerState).c_str(), true);
+        }
+        else if (payload[0] == '1')
+        {
+            sprinklerState = 1;
+            digitalWrite(PIN_SPRINKLER, HIGH);
+            client.publish(TOPIC_SPRINKLERS, String(sprinklerState).c_str(), true);
         }
     }
 }
 
 void motionStatusChanged()
 {
-    int motionStatus = digitalRead(PIN_MOTION);
-    digitalWrite(PIN_RELAY_WATERPUMP, motionStatus);
-    client.publish(TOPIC_MOTION, String(motionStatus).c_str(), true);
+    motionState = digitalRead(PIN_MOTION);
+    client.publish(TOPIC_MOTION, String(motionState).c_str(), true);
     Serial.println("-----------");
-    Serial.print("> Pump activity: ");
-    Serial.print(motionStatus);
+    Serial.print("> Motion status: ");
+    Serial.println(motionState);
     Serial.println("-----------");
 }
 
@@ -106,8 +133,8 @@ void setup()
     Serial.print("Connected, IP address: ");
     Serial.println(WiFi.localIP());
 
-    pinMode(PIN_LED, OUTPUT);
-    digitalWrite(PIN_LED, LOW);
+    pinMode(PIN_SPRINKLER, OUTPUT);
+    digitalWrite(PIN_SPRINKLER, LOW);
 
     pinMode(PIN_LED_R, OUTPUT);
     analogWrite(PIN_LED_R, 0);
@@ -119,17 +146,22 @@ void setup()
     analogWrite(PIN_LED_B, 0);
 
     pinMode(PIN_RELAY_WATERPUMP, OUTPUT);
-    digitalWrite(PIN_LED, LOW);
+    digitalWrite(PIN_RELAY_WATERPUMP, LOW);
 
     pinMode(PIN_MOTION, INPUT);
     attachInterrupt(digitalPinToInterrupt(PIN_MOTION), motionStatusChanged, CHANGE);
 
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
+    client.connect("homeAssistant");
+    client.subscribe(TOPIC_WATERPUMP_SET);
+    client.subscribe(TOPIC_SPRINKLERS_SET);
 }
 
 void loop()
 {
+    client.loop();
+
     if (millis() - millisHumidity > 300)
     {
         soilHumidity = analogRead(PIN_SOIL_HUMIDITY);
