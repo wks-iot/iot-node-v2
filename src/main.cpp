@@ -117,13 +117,15 @@ void loop()
 
     if (millis() - millisHomeAssistant > 5000)
     {
-        client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
-        client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
-        client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidityPercent).c_str(), true);
-        Serial.println("-----------");
-        Serial.println("Home Assistant updated!");
-        Serial.println("-----------");
-
+        if (client.connect("homeAssistant"))
+        {
+            client.publish(TOPIC_TEMPERATURE, String(dhtTemperature).c_str(), true);
+            client.publish(TOPIC_HUMIDITY, String(dhtHumidity).c_str(), true);
+            client.publish(TOPIC_SOIL_HUMIDITY, String(soilHumidityPercent).c_str(), true);
+            Serial.println("-----------");
+            Serial.println("Home Assistant updated!");
+            Serial.println("-----------");
+        }
         millisHomeAssistant = millis();
     }
 }
