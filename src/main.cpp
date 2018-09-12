@@ -5,7 +5,7 @@
 #include "config.h"
 
 //Put your own ip address below
-#define mqtt_server "192.168.43.43"
+#define mqtt_server "192.168.43.158"
 #define mqtt_port 1883
 
 const int PIN_SOIL_HUMIDITY = A0;
@@ -30,6 +30,8 @@ int millisHumidity = 0;
 int millisConsole = 0;
 int millisHomeAssistant = 0;
 
+int waterPumpState = 0;
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -37,6 +39,7 @@ const char *TOPIC_TEMPERATURE = "garden/greenhouse/temperature";
 const char *TOPIC_HUMIDITY = "garden/greenhouse/humidity";
 const char *TOPIC_SOIL_HUMIDITY = "garden/greenhouse/soil_humidity";
 const char *TOPIC_WATERPUMP = "garden/greenhouse/waterpump";
+const char *TOPIC_WATERPUMP_SET = "garden/greenhouse/waterpump/set";
 
 void printDHTValues(float h, float t, float hic)
 {
@@ -62,15 +65,19 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
     Serial.println();
 
-    if (strcmp(topic, TOPIC_WATERPUMP) == 0)
+    if (strcmp(topic, TOPIC_WATERPUMP_SET) == 0)
     {
         if (payload[0] == '0')
         {
+            waterPumpState = 0;
             digitalWrite(PIN_RELAY_WATERPUMP, LOW);
+            client.publish(TOPIC_WATERPUMP, String(waterPumpState).c_str(), true);
         }
         else if (payload[0] == '1')
         {
+            waterPumpState = 1;
             digitalWrite(PIN_RELAY_WATERPUMP, HIGH);
+            client.publish(TOPIC_WATERPUMP, String(waterPumpState).c_str(), true);
         }
     }
 }
@@ -110,10 +117,14 @@ void setup()
 
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
+    client.connect("homeAssistant");
+    client.subscribe(TOPIC_WATERPUMP_SET);
 }
 
 void loop()
 {
+    client.loop();
+
     if (millis() - millisHumidity > 300)
     {
         soilHumidity = analogRead(PIN_SOIL_HUMIDITY);
@@ -158,7 +169,6 @@ void loop()
             Serial.println("Home Assistant updated!");
             Serial.println("-----------");
         }
-
         millisHomeAssistant = millis();
     }
 }
